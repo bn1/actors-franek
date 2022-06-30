@@ -121,7 +121,7 @@ module.exports = async () => {
                     "language": "cs",
                     "title": await translate($('h1#productTitle').text().trim(), 'CS'),
                     // "short_description": null,
-                    "long_description": $('#description').html(),
+                    "long_description": await translate($('#description').html(), 'CS'),
                     // "url": "https://bonado.upgates.shop/p/bamato-bcs-500pro-400v-kotoucova-stolni-pila",
                     // "unit": "ks"
                 }
