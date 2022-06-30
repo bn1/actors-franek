@@ -5,6 +5,8 @@ const Apify = require("apify");
 
 const {log} = Apify.utils;
 
+// TODO prepsat na cheerio crawlera, ktery bude tahat API!
+
 
 function create_upgates_connection() {
     return  axios.create({

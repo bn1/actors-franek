@@ -89,11 +89,15 @@ module.exports = {
 
                 prices += `
                             <PRICE language="${ price.language }">
-                                <CURRENCY>${ price.currency }</CURRENCY>
                                 <PRICELISTS>${ pricelists }</PRICELISTS>
-                                <VAT>${ price.vat }</VAT>
+                                <CURRENCY>${ price.currency }</CURRENCY>
                             </PRICE>
                         `
+            }
+
+            let vats = '';
+            for (let vat of product.vats) {
+                vats += `<VAT language="${ vat.language }">${ vat.vat }</VAT>`
             }
 
             xml_output += `
@@ -111,6 +115,7 @@ module.exports = {
                             <IMAGES>${ images }</IMAGES>
                             <CATEGORIES>${ categories }</CATEGORIES>
                             <PRICES>${ prices }</PRICES>
+                            <VATS>${ vats }</VATS>
                         </PRODUCT>
                     `
                 // <AVAILABILITY_TYPE>${ product.availability_type }</AVAILABILITY_TYPE>

@@ -17,6 +17,7 @@ log.setLevel(log.LEVELS.DEBUG);
 
 const config = require("./utils/config");
 
+const EUR_RATIO = 24.74;
 
 const DEEPL_API_KEY = 'b4cd58c7-0740-f6a0-7dcd-f218afd76f10:fx';
 
@@ -28,6 +29,7 @@ const UPGATES_XML_OUTPUT = true;
 const UPDATE_UPGATES = false;
 const KEYS_TO_OVERRIDE = [];
 
+config.set('EUR_RATIO', EUR_RATIO);
 
 config.set('UPGATES_BASE_URL', UPGATES_BASE_URL);
 config.set('UPGATES_USERNAME', UPGATES_USERNAME);

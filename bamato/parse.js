@@ -1,6 +1,7 @@
 const Apify = require("apify");
 const cheerio = require('cheerio');
 const {translate} = require("../utils/translations");
+const config = require("../utils/config");
 
 
 const {log} = Apify.utils;
@@ -89,10 +90,6 @@ module.exports = async () => {
             parameter.value = await translate(parameter.value, 'CS');
         }
 
-        let price_string = $('#productPrice .price').text()
-            .replace(/([a-zA-Z€]|\s)/g, '')
-            .replace(',', '.');
-
         let vat_string = $('.pricebox').text().match(/(\d+%)/);
         let vat = 0;
 
@@ -100,7 +97,14 @@ module.exports = async () => {
             vat = parseInt(vat_string[0].replace(/\D/, ''));
         }
 
+        let price_string = $('#productPrice .price').text()
+            .replace(/([a-zA-Z€]|\s)/g, '')
+            .replace('.', '')
+            .replace(',', '.');
+
         let price = parseFloat(price_string) / (1 + 0.01 * vat);
+        price = price || 0;
+        price *= config.get('EUR_RATIO');
 
         await bamato_products.pushData({
             "code": $('#productTitle').next().text().trim().split('Artikelnummer: ').slice(-1)[0],
@@ -128,7 +132,7 @@ module.exports = async () => {
             // "stock_position": null,
             "availability": $('.deliverytime').text(),
             "availability_type": 'InStock',
-            "weight": parseFloat($('.weight').text().replace(/([a-zA-Z]|\s)/g, '')) * 1e3,
+            "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
             // "shipment_group": null,
             "images": $('.slides img').map((index, el) => {
                 let url = el.attribs.src.replace('generated', 'master');
@@ -138,6 +142,12 @@ module.exports = async () => {
                 return { url }
             }).toArray(),
             "categories": categories.map(category => {return {code: category.code}}),
+            "vats": [
+                {
+                    "vat": 21,
+                    "language": "cs",
+                }
+            ],
             // "groups": [],
             "prices": [
                 {
@@ -156,7 +166,6 @@ module.exports = async () => {
                     ],
                     // "price_purchase": null,
                     // "price_common": 0,
-                    "vat": 21,
                     // "recycling_fee": null
                 }
             ],
