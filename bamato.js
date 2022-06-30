@@ -1,14 +1,13 @@
 const Apify = require('apify');
-const axios = require('axios');
 
 
 const { log } = Apify.utils;
 log.setLevel(log.LEVELS.DEBUG);
 
 
-async function run_crawler({upgates_data, update_product, keys_to_override, upgates_xml_output}) {
+async function run_crawler({upgates_data, update_product, keys_to_override, upgates_xml_output, translate}) {
     // Open the default request queue associated with the actor run
-    const requestQueue = await Apify.openRequestQueue();
+    const requestQueue = await Apify.openRequestQueue('bamato');
     await requestQueue.addRequest({url: 'https://www.bamato-maschinen.de/', userData: {page: 'main'}});
 
     let categories_dataset, products_dataset, categories_queue, products_queue;
@@ -66,6 +65,38 @@ async function run_crawler({upgates_data, update_product, keys_to_override, upga
                     break;
 
                 case 'product-detail':
+                    let categories = $('.tagCloud a').map(
+                        (index, el) => {
+                            return {
+                                "_id": el.attribs.href,
+                                "code": el.attribs.href.split('/').slice(-2)[0],
+                                // "category_id": 2325,
+                                // "parent_id": 2318,
+                                // "position": 4,
+                                "active_yn": true,
+                                "type": "siteWithProducts",
+                                "type_of_items": "withoutSubcategories",
+                                // "manufacturer": null,
+                                // "label": null,
+                                // "show_in_menu_yn": true,
+                                "descriptions": [
+                                    {
+                                        "language": "cs",
+                                        "name": $(el).text(),
+                                        "name_h1": $(el).text(),
+                                        // "description_text": null,
+                                        // "url": null,
+                                        // "link_url": null
+                                    }
+                                ],
+                                // "images": [],
+                                // "creation_time": "2022-06-21T14:13:46+0200",
+                                // "last_update_time": "2022-06-21T14:13:46+0200",
+                                // "admin_url": "https://bonado.admin.upgates.com/manager/manager-content/category/edit/default/2325"
+                            }
+                        }
+                    ).toArray();
+
                     const product_data = {
                         "code": "BCS-500PRO",
                         "code_supplier": null,
@@ -94,36 +125,7 @@ async function run_crawler({upgates_data, update_product, keys_to_override, upga
                         "weight": null,
                         "shipment_group": null,
                         "images": [],
-                        "categories": $('.tagCloud a').map(
-                        (index, el) => {
-                                return {
-                                    "code": el.attribs.href.split('/').slice(-2)[0],
-                                    // "category_id": 2325,
-                                    // "parent_id": 2318,
-                                    // "position": 4,
-                                    "active_yn": true,
-                                    "type": "siteWithProducts",
-                                    "type_of_items": "withoutSubcategories",
-                                    // "manufacturer": null,
-                                    // "label": null,
-                                    // "show_in_menu_yn": true,
-                                    "descriptions": [
-                                        {
-                                            "language": "cs",
-                                            "name": el.text,
-                                            "name_h1": $(el).text(),
-                                            // "description_text": null,
-                                            "url": el.attribs.href,
-                                            // "link_url": null
-                                        }
-                                    ],
-                                    // "images": [],
-                                    // "creation_time": "2022-06-21T14:13:46+0200",
-                                    // "last_update_time": "2022-06-21T14:13:46+0200",
-                                    // "admin_url": "https://bonado.admin.upgates.com/manager/manager-content/category/edit/default/2325"
-                                }
-                            }
-                        ).toArray(),
+                        "categories": categories,
                         "groups": [],
                         "prices": [
                             {
@@ -165,15 +167,22 @@ async function run_crawler({upgates_data, update_product, keys_to_override, upga
                     };
 
                     if (upgates_xml_output) {
-                        for (let category of product_data.categories) {
+                        for (let category of categories) {
                             await categories_queue.addRequest({
-                                url: category.descriptions[0].url,
+                                url: category._id,
                                 userData: category
                             })
                             let category_rq = await categories_queue.fetchNextRequest();
                             if (category_rq) {
                                 await categories_queue.markRequestHandled(category_rq);
-                                await categories_dataset.pushData(category_rq.userData);
+                                let category = category_rq.userData;
+                                let category_name = category.descriptions[0].name;
+
+                                category_name = await translate(category_name, 'CS');
+                                category.descriptions[0].name = category_name;
+                                category.descriptions[0].name_h1 = category_name;
+
+                                await categories_dataset.pushData(category);
                             }
                         }
                     }
@@ -190,6 +199,40 @@ async function run_crawler({upgates_data, update_product, keys_to_override, upga
 
                 default:
                     log.debug(`Unhandled url ${request.url}`);
+            }
+
+            if (upgates_xml_output && await requestQueue.isEmpty()) {
+                // bamato-categories.xml
+                let xml_output = '<CATEGORIES version="1">'
+                // noinspection ES6MissingAwait
+                await categories_dataset.forEach(async (category, index) => {
+                    let descriptions = ''
+                    for (let description of category.descriptions) {
+                        descriptions += `
+                            <DESCRIPTION language="${ description.language }">
+                                <NAME>${ description.name }</NAME>
+                                <NAME_H1>${ description.name_h1 }</NAME_H1>
+                            </DESCRIPTION>`
+                    }
+
+                    xml_output += `
+                        <CATEGORY>
+                            <CODE>${ category.code }</CODE>
+                            <ACTIVE_YN>${ Number(category.active_yn) }</ACTIVE_YN>
+                            <TYPE>${ category.type }</TYPE>
+                            <TYPE_OF_ITEMS>${ category.type_of_items }</TYPE_OF_ITEMS>
+                            <DESCRIPTIONS>${ descriptions }</DESCRIPTIONS>
+                        </CATEGORY>`
+                });
+
+                xml_output += '</CATEGORIES>'
+
+                let storage = await Apify.openKeyValueStore();
+                await storage.setValue(
+                    'bamato-categories',
+                    xml_output,
+                    {contentType: 'text/xml;charset=UTF-8'}
+                )
             }
 
 

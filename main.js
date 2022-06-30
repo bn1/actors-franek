@@ -3,6 +3,7 @@
 // Import Apify SDK. For more information, see https://sdk.apify.com/
 const Apify = require('apify');
 const axios = require('axios');
+const qs = require('qs');
 
 const {log} = Apify.utils;
 log.setLevel(log.LEVELS.DEBUG);
@@ -12,13 +13,27 @@ let bamato_crawler = require('./bamato.js');
 let drechslershop_crawler = require('./drechslershop.js');
 
 
-let UPGATES_BASE_URL = 'https://bonado.admin.upgates.com';
-let UPGATES_USERNAME = '85530321';
-let UPGATES_PASSWORD = 'g5f/l2uODtd3Z9sqhPeC';
+const DEEPL_API_KEY = 'b4cd58c7-0740-f6a0-7dcd-f218afd76f10:fx';
 
-let UPGATES_XML_OUTPUT = true;
-let UPDATE_UPGATES = false;
-let KEYS_TO_OVERRIDE = [];
+const UPGATES_BASE_URL = 'https://bonado.admin.upgates.com';
+const UPGATES_USERNAME = '85530321';
+const UPGATES_PASSWORD = 'g5f/l2uODtd3Z9sqhPeC';
+
+const UPGATES_XML_OUTPUT = true;
+const UPDATE_UPGATES = false;
+const KEYS_TO_OVERRIDE = [];
+
+
+async function translate(text, target_lang) {
+    let auth_key = DEEPL_API_KEY;
+    let response = await axios.post(
+        'https://api-free.deepl.com/v2/translate',
+        qs.stringify({auth_key, text, target_lang}),
+        {params: {auth_key}}
+    );
+
+    return response.data.translations[0].text;
+}
 
 
 function create_upgates_connection() {
@@ -3601,7 +3616,7 @@ Apify.main(async () => {
     console.log('Input:');
     console.dir(input);
 
-    let upgates_connection, upgates_product, upgates_data;
+    let upgates_connection, update_product, upgates_data;
 
     if (UPDATE_UPGATES) {
         upgates_connection = create_upgates_connection();
@@ -3618,7 +3633,8 @@ Apify.main(async () => {
             upgates_data,
             update_product,
             upgates_xml_output: UPGATES_XML_OUTPUT,
-            keys_to_override: KEYS_TO_OVERRIDE
+            keys_to_override: KEYS_TO_OVERRIDE,
+            translate
         }),
         // drechslershop_crawler.run()
     ]);
