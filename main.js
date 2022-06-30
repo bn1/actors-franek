@@ -24,15 +24,40 @@ const UPDATE_UPGATES = false;
 const KEYS_TO_OVERRIDE = [];
 
 
-async function translate(text, target_lang) {
-    let auth_key = DEEPL_API_KEY;
-    let response = await axios.post(
-        'https://api-free.deepl.com/v2/translate',
-        qs.stringify({auth_key, text, target_lang}),
-        {params: {auth_key}}
-    );
+String.prototype.hashCode = function() {
+    var hash = 0;
+    for (var i = 0; i < this.length; i++) {
+        var char = this.charCodeAt(i);
+        hash = ((hash<<5)-hash)+char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+}
 
-    return response.data.translations[0].text;
+
+async function translate_factory() {
+    const translations = await Apify.openKeyValueStore('translations');
+
+    return async function translate(text, target_lang) {
+        let translation_key = String(`(${target_lang}) ${text}`.hashCode());
+        let translation = await translations.getValue(translation_key);
+
+        if (translation) {
+            return translation;
+        }
+
+        let auth_key = DEEPL_API_KEY;
+        let response = await axios.post(
+            'https://api-free.deepl.com/v2/translate',
+            qs.stringify({auth_key, text, target_lang}),
+            {params: {auth_key}}
+        );
+        translation = response.data.translations[0].text;
+
+        await translations.setValue(translation_key, translation);
+
+        return translation;
+    }
 }
 
 
@@ -3615,6 +3640,8 @@ Apify.main(async () => {
     let input = await Apify.getInput();
     console.log('Input:');
     console.dir(input);
+
+    const translate = await translate_factory();
 
     let upgates_connection, update_product, upgates_data;
 
