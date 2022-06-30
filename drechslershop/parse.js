@@ -8,7 +8,6 @@ const {log} = Apify.utils;
 
 
 module.exports = async () => {
-    return
     log.debug('drechslershop.parse');
 
     let drechslershop_pages = await Apify.openDataset('drechslershop-pages');
@@ -79,36 +78,18 @@ module.exports = async () => {
             await drechslershop_categories.pushData(category);
         }
 
-        let parameters = $('.attributes > div').map((index, el) => {
-            return {
-                "language": "cs",
-                "name": $(el).find('dt').text().trim(),
-                "value": $(el).find('dd').text().trim()
-            }
-        }).toArray();
-        for (let parameter of parameters) {
-            parameter.name = await translate(parameter.name, 'CS');
-            parameter.value = await translate(parameter.value, 'CS');
-        }
+        let parameters = [];
 
-        let vat_string = $('.pricebox').text().match(/(\d+%)/);
-        let vat = 0;
-
-        if (vat_string) {
-            vat = parseInt(vat_string[0].replace(/\D/, ''));
-        }
-
-        let price_string = $('#productPrice .price').text()
-            .replace(/([a-zA-Z€]|\s)/g, '')
-            .replace('.', '')
-            .replace(',', '.');
+        let vat = 19;
+        let price_string = $('.price--content').text()
+            .replace(/([a-zA-Z€*]|\s)/g, '');
 
         let price = parseFloat(price_string) / (1 + 0.01 * vat);
         price = price || 0;
         price *= config.get('EUR_RATIO');
 
         await drechslershop_products.pushData({
-            "code": $('#productTitle').next().text().trim().split('Artikelnummer: ').slice(-1)[0],
+            "code": $('.base-info--entry.entry--sku .entry--content').text().trim(),
             // "code_supplier": null,
             // "ean": null,
             // "product_id": null,
@@ -120,27 +101,22 @@ module.exports = async () => {
             "descriptions": [
                 {
                     "language": "cs",
-                    "title": await translate($('h1#productTitle').text().trim(), 'CS'),
+                    "title": await translate($('h1.product--title').text().trim(), 'CS'),
                     // "short_description": null,
-                    "long_description": await translate($('#description').html(), 'CS'),
+                    "long_description": await translate($('.product--description').html(), 'CS'),
                     // "url": "https://bonado.upgates.shop/p/drechslershop-bcs-500pro-400v-kotoucova-stolni-pila",
                     // "unit": "ks"
                 }
             ],
             "parameters": parameters,
-            "manufacturer": $('.brandLogo a')[0].attribs.title,
+            "manufacturer": $('.product--supplier-link img')[0].attribs.alt,
             // "stock": null,
             // "stock_position": null,
-            "availability": $('.deliverytime').text(),
-            "availability_type": 'InStock',
-            "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
+            "availability": await translate($('.deliverytime').text(), 'CS'),
+            "weight": 0,
             // "shipment_group": null,
-            "images": $('.slides img').map((index, el) => {
-                let url = el.attribs.src.replace('generated', 'master');
-                url = url.split('/');
-                url = [].concat(url.slice(0, -2), url.slice(-1)).join('/');
-
-                return { url }
+            "images": $('.image-slider--thumbnails-slide a').map((index, el) => {
+                return {url: el.attribs.href};
             }).toArray(),
             "categories": categories.map(category => {return {code: category.code}}),
             "vats": [
@@ -188,4 +164,6 @@ module.exports = async () => {
             // "admin_url": "https://bonado.admin.upgates.com/manager/products/main/default/7796"
         });
     });
+
+    log.debug('drechslershop.parse - done');
 }

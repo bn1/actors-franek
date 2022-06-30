@@ -63,7 +63,10 @@ module.exports = async () => {
                     break;
 
                 case 'product-detail':
-                    await product_pages.pushData({html: $.html()});
+                    await product_pages.pushData({
+                        url: request.url,
+                        html: $.html()
+                    });
                     break;
 
                 default:

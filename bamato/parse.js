@@ -130,8 +130,7 @@ module.exports = async () => {
             "manufacturer": $('.brandLogo a')[0].attribs.title,
             // "stock": null,
             // "stock_position": null,
-            "availability": $('.deliverytime').text(),
-            "availability_type": 'InStock',
+            "availability": await translate($('.deliverytime').text(), 'CS'),
             "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
             // "shipment_group": null,
             "images": $('.slides img').map((index, el) => {
@@ -187,4 +186,6 @@ module.exports = async () => {
             // "admin_url": "https://bonado.admin.upgates.com/manager/products/main/default/7796"
         });
     });
+
+    log.debug('bamato.parse - done');
 }
