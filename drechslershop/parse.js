@@ -2,6 +2,7 @@ const Apify = require("apify");
 const cheerio = require('cheerio');
 const {translate} = require("../utils/translations");
 const config = require("../utils/config");
+const {parse_price} = require("../utils/parsers");
 
 
 const {log} = Apify.utils;
@@ -81,12 +82,24 @@ module.exports = async () => {
         let parameters = [];
 
         let vat = 19;
-        let price_string = $('.price--content').text()
-            .replace(/([a-zA-Z€*]|\s)/g, '');
+        let price = parse_price($('.price--content').text());
 
-        let price = parseFloat(price_string) / (1 + 0.01 * vat);
+        price /= 1 + 0.01 * vat;
         price = price || 0;
         price *= config.get('EUR_RATIO');
+
+        let images = $('.image-slider--thumbnails-slide a').map((index, el) => {
+            return {url: el.attribs.href};
+        }).toArray();
+
+        if (!images.length) {
+            let single_image = $('span.image--element[data-img-original]')[0].attribs['data-img-original'];
+            if (single_image) {
+                images = [{
+                    url: single_image
+                }];
+            }
+        }
 
         await drechslershop_products.pushData({
             "code": $('.base-info--entry.entry--sku .entry--content').text().trim(),
@@ -109,15 +122,13 @@ module.exports = async () => {
                 }
             ],
             "parameters": parameters,
-            "manufacturer": $('.product--supplier-link img')[0].attribs.alt,
+            "manufacturer": $('.product--supplier-link img')[0].attribs.alt.match(/^([^(]+)/)[1].split('/')[0].trim(),
             // "stock": null,
             // "stock_position": null,
             "availability": await translate($('.deliverytime').text(), 'CS'),
             "weight": 0,
             // "shipment_group": null,
-            "images": $('.image-slider--thumbnails-slide a').map((index, el) => {
-                return {url: el.attribs.href};
-            }).toArray(),
+            "images": images,
             "categories": categories.map(category => {return {code: category.code}}),
             "vats": [
                 {
@@ -128,7 +139,7 @@ module.exports = async () => {
             // "groups": [],
             "prices": [
                 {
-                    "currency": "EUR",
+                    "currency": "CZK",
                     "language": "cs",
                     "pricelists": [
                         {

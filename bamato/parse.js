@@ -2,6 +2,7 @@ const Apify = require("apify");
 const cheerio = require('cheerio');
 const {translate} = require("../utils/translations");
 const config = require("../utils/config");
+const {parse_price} = require("../utils/parsers");
 
 
 const {log} = Apify.utils;
@@ -97,12 +98,9 @@ module.exports = async () => {
             vat = parseInt(vat_string[0].replace(/\D/, ''));
         }
 
-        let price_string = $('#productPrice .price').text()
-            .replace(/([a-zA-Z€]|\s)/g, '')
-            .replace('.', '')
-            .replace(',', '.');
+        let price = parse_price($('#productPrice .price').text());
 
-        let price = parseFloat(price_string) / (1 + 0.01 * vat);
+        price /= 1 + 0.01 * vat;
         price = price || 0;
         price *= config.get('EUR_RATIO');
 
@@ -133,7 +131,7 @@ module.exports = async () => {
             "availability": await translate($('.deliverytime').text(), 'CS'),
             "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
             // "shipment_group": null,
-            "images": $('.slides img').map((index, el) => {
+            "images": $('.otherPictures a img').map((index, el) => {
                 let url = el.attribs.src.replace('generated', 'master');
                 url = url.split('/');
                 url = [].concat(url.slice(0, -2), url.slice(-1)).join('/');
@@ -150,7 +148,7 @@ module.exports = async () => {
             // "groups": [],
             "prices": [
                 {
-                    "currency": "EUR",
+                    "currency": "CZK",
                     "language": "cs",
                     "pricelists": [
                         {
