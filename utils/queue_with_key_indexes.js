@@ -11,7 +11,7 @@ async function queue_with_key_indexes(store_name) {
     STORE_ROUTER[store_name] = {
         kv_store: await Apify.openKeyValueStore(store_name),
         queue: await Apify.openRequestQueue(store_name),
-        _map: await Apify.openKeyValueStore(`_${ store_name }`)
+        _map: await Apify.openKeyValueStore(`${ store_name }-map`)
     };
 
     let _get_url_key = (key) => `https://example.com/${ key }`;
