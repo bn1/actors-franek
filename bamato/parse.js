@@ -104,6 +104,23 @@ module.exports = async () => {
         price = price || 0;
         price *= config.get('EUR_RATIO');
 
+        let images = $('.otherPictures a img').map((index, el) => {
+            let url = el.attribs.src.replace('generated', 'master');
+            url = url.split('/');
+            url = [].concat(url.slice(0, -2), url.slice(-1)).join('/');
+
+            return { url }
+        }).toArray();
+
+        if (!images.length) {
+            let single_image = $('#zoom1')[0].attribs['data-img-original'];
+            if (single_image) {
+                images = [{
+                    url: single_image
+                }];
+            }
+        }
+
         await bamato_products.pushData({
             "code": $('#productTitle').next().text().trim().split('Artikelnummer: ').slice(-1)[0],
             // "code_supplier": null,
@@ -131,13 +148,7 @@ module.exports = async () => {
             "availability": await translate($('.deliverytime').text(), 'CS'),
             "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
             // "shipment_group": null,
-            "images": $('.otherPictures a img').map((index, el) => {
-                let url = el.attribs.src.replace('generated', 'master');
-                url = url.split('/');
-                url = [].concat(url.slice(0, -2), url.slice(-1)).join('/');
-
-                return { url }
-            }).toArray(),
+            "images": images,
             "categories": categories.map(category => {return {code: category.code}}),
             "vats": [
                 {
