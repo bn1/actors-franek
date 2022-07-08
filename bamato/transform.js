@@ -44,7 +44,7 @@ module.exports = async () => {
             }
 
             await bamato_categories.setValue(category.code, category);
-            await bamato_categories_parsed.markHandled(category.code);
+            await bamato_categories_parsed.markHandled(category.url);
         }
     });
 
@@ -79,6 +79,16 @@ module.exports = async () => {
                 }
             ];
 
+            product.images = product.images.map(url => { return {url} });
+
+            product.related_products = product.related_products.map(url => { return {url} });
+            for (let related_p of product.related_products) {
+                let related_product = await bamato_products_parsed.getValue(related_p.url);
+                if (related_product) {
+                    related_p.code = related_product.code;
+                }
+            }
+
             product.descriptions = [{
                 language: 'cs',
                 title: await translate(product.title, 'CS'),
@@ -104,14 +114,17 @@ module.exports = async () => {
             }
 
             await bamato_products.setValue(product.code, product);
-            await bamato_products_parsed.markHandled(product.code);
+            await bamato_products_parsed.markHandled(product.url);
         }
     });
 
-    await Promise.allSettled([
-        categories_pool.run(),
-        products_pool.run()
-    ])
+    await categories_pool.run();
+    await products_pool.run();
+
+    // await Promise.allSettled([
+    //     categories_pool.run(),
+    //     products_pool.run()
+    // ])
 
     log.debug('bamato.transform - done');
 }

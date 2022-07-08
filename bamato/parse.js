@@ -32,7 +32,7 @@ module.exports = async () => {
         let categories = $('#breadcrumb li a').map(
             (index, el) => {
                 return {
-                    "_id": el.attribs.href,
+                    "url": el.attribs.href,
                     "code": el.attribs.href.split('/').slice(-2)[0].toLowerCase(),
                     "descriptions": [
                         {
@@ -53,7 +53,7 @@ module.exports = async () => {
             }
         }
         for (let category of categories) {
-            await bamato_categories.setValue(category.code, category);
+            await bamato_categories.setValue(category.url, category);
         }
 
         let vat_string = $('.pricebox').text().match(/(\d+%)/);
@@ -71,20 +71,19 @@ module.exports = async () => {
             url = url.split('/');
             url = [].concat(url.slice(0, -2), url.slice(-1)).join('/');
 
-            return { url }
+            return url;
         }).toArray();
 
         if (!images.length) {
             let single_image = $('#zoom1')[0].attribs['data-img-original'];
             if (single_image) {
-                images = [{
-                    url: single_image
-                }];
+                images = [single_image];
             }
         }
 
         let code = $('#productTitle').next().text().trim().split('Artikelnummer: ').slice(-1)[0];
-        await bamato_products.setValue(code, {
+        await bamato_products.setValue(page.url, {
+            url: page.url,
             code,
 
             "title": $('h1#productTitle').text().trim(),
@@ -102,6 +101,7 @@ module.exports = async () => {
             "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
             images,
             "categories": categories.map(category => {return {code: category.code}}),
+            "related_products": $('#similar a.title').map((index, el) => el.attribs.href).toArray(),
             price,
         });
     });
