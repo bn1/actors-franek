@@ -17,7 +17,7 @@ async function queue_with_key_indexes(store_name) {
     let _get_url_key = (key) => `https://example.com/${ key }`;
     let _get_key_from_url = (url) => url.slice(20);
     let _get_request = async (key) => new Apify.Request(await STORE_ROUTER[store_name]._map.getValue(key));
-    let _normalize_key = (key) => key.replace(/\//g, '').replace(/:/g, '');
+    let _normalize_key = (key) => key.replace(/\W/g, '')
 
     return {
         getValue: async (key) => await STORE_ROUTER[store_name].kv_store.getValue(_normalize_key(key)),
