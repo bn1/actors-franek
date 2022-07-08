@@ -1,8 +1,8 @@
 const Apify = require("apify");
 const cheerio = require('cheerio');
-const {translate} = require("../utils/translations");
 const config = require("../utils/config");
 const {parse_price} = require("../utils/parsers");
+const {queue_with_key_indexes} = require("../utils/queue_with_key_indexes");
 
 
 const {log} = Apify.utils;
@@ -13,13 +13,13 @@ module.exports = async () => {
 
     let bamato_pages = await Apify.openDataset('bamato-pages');
 
-    let bamato_categories = await Apify.openDataset('bamato-categories');
-    let bamato_products = await Apify.openDataset('bamato-products');
+    let bamato_categories = await queue_with_key_indexes('bamato-categories-parsed');
+    let bamato_products = await queue_with_key_indexes('bamato-products-parsed');
 
     let bamato_pages_info = await bamato_pages.getInfo();
     let bamato_products_info = await bamato_products.getInfo();
 
-    if (bamato_products_info.itemCount) {
+    if (bamato_products_info.totalCount) {
         log.debug('bamato.parse - skipped');
         return
     }
@@ -34,29 +34,11 @@ module.exports = async () => {
                 return {
                     "_id": el.attribs.href,
                     "code": el.attribs.href.split('/').slice(-2)[0].toLowerCase(),
-                    // "category_id": 2325,
-                    // "parent_id": 2318,
-                    // "position": 4,
-                    "active_yn": true,
-                    "type": "siteWithProducts",
-                    "type_of_items": "withoutSubcategories",
-                    // "manufacturer": null,
-                    // "label": null,
-                    // "show_in_menu_yn": true,
                     "descriptions": [
                         {
-                            "language": "cs",
                             "name": $(el).text(),
-                            "name_h1": $(el).text(),
-                            // "description_text": null,
-                            // "url": null,
-                            // "link_url": null
                         }
                     ],
-                    // "images": [],
-                    // "creation_time": "2022-06-21T14:13:46+0200",
-                    // "last_update_time": "2022-06-21T14:13:46+0200",
-                    // "admin_url": "https://bonado.admin.upgates.com/manager/manager-content/category/edit/default/2325"
                 }
             }
         ).toArray();
@@ -69,40 +51,20 @@ module.exports = async () => {
             if (index) {
                 category.parent_id = categories[index - 1].category_id;
             }
-
-            for (let description of category.descriptions) {
-                description.name = await translate(description.name, 'CS');
-                description.name_h1 = await translate(description.name_h1, 'CS');
-            }
         }
         for (let category of categories) {
-            await bamato_categories.pushData(category);
-        }
-
-        let parameters = $('.attributes > div').map((index, el) => {
-            return {
-                "language": "cs",
-                "name": $(el).find('dt').text().trim(),
-                "value": $(el).find('dd').text().trim()
-            }
-        }).toArray();
-        for (let parameter of parameters) {
-            parameter.name = await translate(parameter.name, 'CS');
-            parameter.value = await translate(parameter.value, 'CS');
+            await bamato_categories.setValue(category.code, category);
         }
 
         let vat_string = $('.pricebox').text().match(/(\d+%)/);
         let vat = 0;
-
         if (vat_string) {
             vat = parseInt(vat_string[0].replace(/\D/, ''));
         }
+        vat = vat || 0;
 
         let price = parse_price($('#productPrice .price').text());
-
         price /= 1 + 0.01 * vat;
-        price = price || 0;
-        price *= config.get('EUR_RATIO');
 
         let images = $('.otherPictures a img').map((index, el) => {
             let url = el.attribs.src.replace('generated', 'master');
@@ -121,78 +83,26 @@ module.exports = async () => {
             }
         }
 
-        await bamato_products.pushData({
-            "code": $('#productTitle').next().text().trim().split('Artikelnummer: ').slice(-1)[0],
-            // "code_supplier": null,
-            // "ean": null,
-            // "product_id": null,
-            "active_yn": true,
-            "archived_yn": false,
-            // "replacement_product_code": null,
-            "can_add_to_basket_yn": true,
-            "adult_yn": false,
-            "descriptions": [
-                {
-                    "language": "cs",
-                    "title": await translate($('h1#productTitle').text().trim(), 'CS'),
-                    // "short_description": null,
-                    "long_description": await translate($('#description').html(), 'CS'),
-                    // "url": "https://bonado.upgates.shop/p/bamato-bcs-500pro-400v-kotoucova-stolni-pila",
-                    // "unit": "ks"
+        let code = $('#productTitle').next().text().trim().split('Artikelnummer: ').slice(-1)[0];
+        await bamato_products.setValue(code, {
+            code,
+
+            "title": $('h1#productTitle').text().trim(),
+            "description": $('#description').html(),
+
+            "parameters": $('.attributes > div').map((index, el) => {
+                return {
+                    "name": $(el).find('dt').text().trim(),
+                    "value": $(el).find('dd').text().trim()
                 }
-            ],
-            "parameters": parameters,
+            }).toArray(),
+
             "manufacturer": $('.brandLogo a')[0].attribs.title,
-            // "stock": null,
-            // "stock_position": null,
-            "availability": await translate($('.deliverytime').text(), 'CS'),
+            "availability": $('.deliverytime').text(),
             "weight": parseFloat($('.weight').text().replace(/([a-zA-Z:]|\s)/g, '')) * 1e3,
-            // "shipment_group": null,
-            "images": images,
+            images,
             "categories": categories.map(category => {return {code: category.code}}),
-            "vats": [
-                {
-                    "vat": 21,
-                    "language": "cs",
-                }
-            ],
-            // "groups": [],
-            "prices": [
-                {
-                    "currency": "CZK",
-                    "language": "cs",
-                    "pricelists": [
-                        {
-                            // "name": "Výchozí",
-                            "price_original": price,
-                            // "product_discount": null,
-                            // "product_discount_real": 0,
-                            // "price_sale": null,
-                            // "price_with_vat": 0,
-                            // "price_without_vat": 0
-                        }
-                    ],
-                    // "price_purchase": null,
-                    // "price_common": 0,
-                    // "recycling_fee": null
-                }
-            ],
-            // "variants": [],
-            // "metas": [
-            //     {
-            //         "key": "col",
-            //         "type": "input",
-            //         "value": ""
-            //     },
-            //     {
-            //         "key": "cont",
-            //         "type": "input",
-            //         "value": ""
-            //     }
-            // ],
-            // "creation_time": "2022-06-22T10:56:47+0200",
-            // "last_update_time": "2022-06-22T11:15:14+0200",
-            // "admin_url": "https://bonado.admin.upgates.com/manager/products/main/default/7796"
+            price,
         });
     });
 

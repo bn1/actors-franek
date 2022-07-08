@@ -18,16 +18,16 @@ const dict_values = (dict) => {
 module.exports = async () => {
     log.debug('bamato.output');
 
-    let bamato_categories = await Apify.openDataset('bamato-categories');
-    let bamato_products = await Apify.openDataset('bamato-products');
+    let bamato_categories = await Apify.openKeyValueStore('bamato-categories');
+    let bamato_products = await Apify.openKeyValueStore('bamato-products');
 
     let categories = {};
     let products = {};
 
     // noinspection ES6MissingAwait
-    await bamato_categories.forEach(async category => categories[category.code] = category);
+    await bamato_categories.forEachKey(async category_key => categories[category_key] = await bamato_categories.getValue(category_key));
     // noinspection ES6MissingAwait
-    await bamato_products.forEach(async product => products[product.code] = product);
+    await bamato_products.forEachKey(async product_key => products[product_key] = await bamato_products.getValue(product_key));
 
     let storage = await Apify.openKeyValueStore();
 

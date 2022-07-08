@@ -46,28 +46,29 @@ Apify.main(async () => {
 
     // let results = await Promise.allSettled([
     //     (async () => {
-            await upgates.download();
-            await upgates.parse();
-        // })(),
-        // (async () => {
+    //         await upgates.download();
+    //         await upgates.parse();
+    //     // })(),
+    //     // (async () => {
             await bamato.download();
             await bamato.parse();
-        // })(),
-        // (async () => {
-            await drechslershop.download();
-            await drechslershop.parse();
-        // })(),
-        // (async () => {
-            await holzmann.download();
-            await holzmann.parse();
-        // })()
-    // ])
-
-    await upgates.update()
-
+    //     // })(),
+    //     // (async () => {
+    //         await drechslershop.download();
+    //         await drechslershop.parse();
+    //     // })(),
+    //     // (async () => {
+    //         await holzmann.download();
+    //         await holzmann.parse();
+    //     // })()
+    // // ])
+    //
+    // await upgates.update()
+    //
+    await bamato.transform();
     await bamato.output()
-    await drechslershop.output()
-    await holzmann.output()
+    // await drechslershop.output()
+    // await holzmann.output()
     // await Promise.allSettled([
     //     upgates.update(),
     //
