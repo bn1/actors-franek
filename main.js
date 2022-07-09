@@ -46,8 +46,7 @@ Apify.main(async () => {
 
     // let results = await Promise.allSettled([
     //     (async () => {
-    //         await upgates.download();
-    //         await upgates.parse();
+            await upgates.download();
     //     // })(),
     //     // (async () => {
             await bamato.download();
